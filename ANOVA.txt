@@ -1,0 +1,310 @@
+### Analysis of variance (ANOVA)
+## Bern University of Applied Sciences, School of Agricultural, Forest and Food Sciences HAFL
+## March 16, 2016
+
+# The aim of the analysis is usually to investigate whether the mean of the numeric
+#variable dffers significantly between the groups and to quantify the divergence.
+
+## The one-way layout 3
+# 1.1.2 The insect sprays data
+# It contains counts of insects in
+# agricultural experimental units treated with different insecticides
+
+# The research question is whether the efficacy of the insecticides difers.
+InsectSprays
+
+with(InsectSprays, tapply(count, spray, length)) #12 obs. per group
+with(InsectSprays, tapply(count, spray, summary)) #compare distr.
+with(InsectSprays, tapply(count, spray, sd)) #standard deviations
+
+## 1.1.3 Visualisation
+# use box plots or stripplots, Using ggplot, a stripplot can be produced by:
+
+library(ggplot2)
+ggplot(InsectSprays, aes(spray, count)) +
+   geom_point(shape = 1, position = position_jitter(width = 0.2 +
+     height = 2))
+
+
+
+ggplot(InsectSprays, aes(spray, count))+
+  geom_point(shape = 1, position = position_jitter(width = 0.2))
+# using the stripplot function from the lattice package
+
+library(lattice)
+stripplot(count~spray, data=InsectSprays, jitter=0.2)
+
+# The box plots may be obtained with4
+plot(count ~ spray, data=InsectSprays, las=1)
+
+# use the sciplot package to plot the grouo means and standard errors
+install.packages(sciplot)
+library(sciplot)
+bargraph.CI(spray, count, col=(gray(0.88)), data=InsectSprays,
+               xlab="spray", ylab="count", ylim=c(0,20))
+lineplot.CI(spray, count, type="p", data = InsectSprays,
+               xlab="spray", ylab="count", ylim=c(0,20))
+
+
+## 1.2 Parametric models: one-way ANOVA 
+## Parametric Models one way
+ins.lm <- lm(count ~ spray, data=InsectSprays)
+anova(ins.lm)
+
+# 1.2.4 Graphical normality checking
+# use normal quantile-quantile (QQ) plots
+
+library(car)
+qqPlot(resid(ins.lm))
+
+
+qqPlot(rnorm(72))
+
+# 1.2.5 Testing for normality
+# use the Shapiro-Wilk test and reject the null hypothesis
+shapiro.test(resid(ins.lm)) 
+
+# yields 0.022 p-value, thre4 residuals have problem with normality
+
+## 1.2.6 Accounting for non-normality   ##The transformation approach
+
+# 1.2.7 Residual plots
+
+plot(jitter(fitted(ins.lm),1), resid(ins.lm), las=1,
+      xlab="Jittered fitted values", ylab="Residuals")
+     + abline(h=0)
+# 1.2.8 Testing homoskedasticity (equal variances)
+# To test homoskedasticity,use both the Bartlett and the Levene test
+bartlett.test(count ~ spray, data=InsectSprays)
+leveneTest(count ~ spray, data=InsectSprays)
+oneway.test(count ~ spray, data=InsectSprays)
+
+## 1.1 Introduction 
+oneway.test(count ~ spray, data=InsectSprays)
+
+## 1.2.10 Leverage and further diagnostic plots
+
+par(mfrow=c(2,2))
+plot(ins.lm)
+
+par(mfrow=c(1,1))
+
+## 1.3 Pairwise group comparisons
+## 1.3.3 Pairwise t and Wilcoxon tests
+# convenience functions to conduct pairwise comparisons
+# two methods, applied to the insect sprays data
+
+with(InsectSprays, pairwise.wilcox.test(count, spray, "holm"))
+
+## 1.3.4 Tukey's honest signicant dierence (HSD)
+
+a <- aov(count~spray, data=InsectSprays)
+TukeyHSD(a, "spray")
+library(agricolae)
+HSD.test(ins.lm, "spray", group=TRUE, console=TRUE)
+
+# 1.3.5 Specic comparisons using Multicomp Library
+library(multcomp)
+summary(glht(ins.lm, mcp(spray="Dunnett")))
+
+# to redene the reference level for Dunnett and the order of the
+# levels for Sequen as you wish.
+
+InsectSprays$b.ref <- relevel(InsectSprays$spray, ref="B")
+summary(glht(lm(count~b.ref, data=InsectSprays), mcp(b.ref="Dunnett")))
+
+InsectSprays$b.ref <- relevel(InsectSprays$spray, ref="B")
+summary(glht(lm(count~b.ref, data=InsectSprays), mcp(b.ref="Sequen")))
+
+## 1.3.6 RMSE and R2      ## We give the ANOVA table again here:
+anova(ins.lm)
+
+summary(ins.lm)$sigma
+summary(ins.lm)$r.squared
+
+# Sometimes comparisons with one level of our factor
+# (called the reference level ) are especially interesting
+summary(ins.lm)
+
+# look at the sample group means again:
+with(InsectSprays, tapply(count,spray,mean))
+
+
+## to remove the intercept and get  the
+# estimate mean for every category, use the term - 1
+summary(lm(count ~ spray - 1 , data = InsectSprays))$coefficients
+
+
+
+## 1.4 Nonparametric method  #1.4.2 The Kruskal-Wallis test
+
+kruskal.test(count ~ spray, data=InsectSprays)
+
+library(NSM3)
+with(InsectSprays, pSDCFlig(x=count, g=as.numeric(spray), method=NA))
+
+
+## 1.5 Robust methods 
+# be used in case the group variances are unequal, 
+# which violates an assumption of the Kruskal-Wallis test.
+
+library(asbio)
+with(InsectSprays, BDM.test(count, spray))
+
+# Another method from robust statistics is implemented as trim.test in asbio
+with(InsectSprays, trim.test(count, spray))
+
+
+## 2.5 Sample size calculation and power
+groupmeans <- c(120, 130, 140, 150)
+power.anova.test(groups = length(groupmeans)
+                   + between.var = var(groupmeans)
+                   + within.var = 500, power = .80, sig.level = 0.05)
+
+
+
+### 3 The two-way layout   #3.1.1 The turnip yield data
+
+library(agridat)
+turnip <- mcconway.turnip
+turnip$density <- as.factor(turnip$density)
+turnip
+
+# The question is how the planting density in kg/ha affects the mean yield 
+# of turnips of two genotypes
+
+boxplot(turnip$yield~turnip$density*turnip$gen)
+ggplot(turnip, aes(x=density, y=yield, fill=gen)) + geom_boxplot()
+
+# The first and last four rows of the data frame look as follows:
+turnip[c(1:4,61:64),]
+
+# 3.1.2 Visualisation
+# All the tools (stripplots, box plots, bargraphs and lineplots) from the one-way setting
+# apply here
+
+qplot(density, yield, data=turnip, facets=~block, shape=gen, size=I(2))
+
+# The Barkant variety seems to have produced a slightly
+# higher average yield than Marko
+
+# Another plot which is related to the lineplot is called an interaction plot
+
+turnip$density <- as.factor(turnip$density)
+with(turnip, interaction.plot(density, gen, yield))
+
+# 3.2.3 EFFect models
+turnip.full <- lm(yield ~ gen*density, data=turnip)
+coef(turnip.full)
+
+# For this simple balanced design, the combination of the estimates is nothing else than
+# the sample means
+
+with(turnip, tapply(yield, list(gen, density), mean))
+
+
+# Sum contrasts
+# sum contrasts which satisfy a different set of constraints,
+# to find out which contrasts R uses, type
+options("contrasts")
+
+# which indicates that treatment contrasts (R slang for dummy contrasts) are used for
+# unordered factors
+options(contrasts=c("contr.sum", "contr.poly"))
+# then run the ANOVA again with the same command as above
+coef(lm(yield ~ gen*density, data=turnip))
+
+# The estimate for the intercept is now the overall mean (mean(turnip$yield)). 
+# All the main and interaction eects are interpreted as deviations from the overall mean now
+
+# From now on, we use treatment contrasts again. Change back the contrasts now with
+options(contrasts=c("contr.treatment", "contr.poly"))
+
+# 3.2.4 The overall F test
+summary(turnip.full)
+
+## 3.2.5 The ANOVA table and the F tests for main and interaction effects
+anova(turnip.full)
+
+# 3.2.6 Tests on individual coecients
+# To test the null hypothesis that a particular individual coecient is zero, 
+# one uses the corresponding t test given in the model summary:
+summary(turnip.full)
+
+## 3.2.7 Graphical normality checking
+# This works exactly as for one-way ANOVA. Consider the QQ plot of the residuals:
+library(car)
+qqPlot(resid(turnip.full), xlab="Normal quantiles", ylab="Residuals")
+
+# The QQ plot shows some problems with a perhaps slightly heavy upper tail and one outlier.
+# Perhaps robust methods or nonparametric methods could be useful to control
+# the effect of the outlier
+
+## 3.2.8 Testing for normality
+# The Shapiro-Wilk test is performed with
+shapiro.test(resid(turnip.full))
+# The null hypothesis of normality is rejected
+
+## 3.2.9 Accounting for non-normality
+# two options: 1.abandon normal distribution based methods
+# and directly switch to nonparametric or robust methods, 
+# 2. or we can try a transformation g such that the sample g(Y ) produces residuals
+# looks as if they came from a normal distribution.
+turnip.sqrt <- lm(sqrt(yield) ~ gen*density, data=turnip)
+qqPlot(resid(turnip.sqrt), xlab="Normal quantiles", ylab="Residuals")
+
+shapiro.test(resid(turnip.sqrt))$p.value
+
+## Residual lots 
+plot(fitted(turnip.sqrt), resid(turnip.sqrt), xlab="Fitted values",
+      ylab="Residuals"); abline(h=0)
+
+# 3.2.11 Testing variance homogeneity
+bartlett.test(sqrt(yield) ~ interaction(gen,density), data=turnip)
+leveneTest(sqrt(yield) ~ interaction(gen,density), data=turnip)
+
+## 3.2.12 Accounting for heterogeneous variances
+# try a transformation g such that the variances of g(Y ) are more comparable.
+
+library(car)
+Anova(turnip.sqrt, white.adjust = "hc3")
+
+# method may be used for data with unequal var and it adjusts the p values
+# by using so-called heteroskedasticity-corrected covariance matrices,"hc3"
+
+###  3.2.13 Leverage and further diagnostic plots
+par(mfrow=c(2,2))
+plot(turnip.sqrt)
+par(mfrow=c(1,1))
+
+
+## 3.2.14 Interpreting the model
+coef(turnip.sqrt)
+dat <- expand.grid(gen = c("Marco", "Barkant"),
+                    density = as.factor(c(1,2,4,8)))
+dat
+pred <- predict(turnip.sqrt, dat)
+pred
+cbind(dat, pred.yield = pred^2)
+
+# Note that if we had not
+# transformed the data, squaring in the last line would be omitted.
+
+### 3.3 Balanced factorial two-way ANOVA without replications
+# 3.3.1 Fixed effect models
+
+# the immer data frame from MASS, contains the yield of 5 Var (M, P, S, T and V) 
+# of barley grown in 6 Loc (C, D, GR, M, UF and W) for two years. 
+# We focus on the yield Y1 from the first year here
+
+# We first treat location as a factor, not as a blocking variable.
+anova(lm(Y1 ~ Loc + Var, immer))
+
+# \forgot" about the location and ran this as a one-factorial ANOVA with factor variety
+# and six repetitions per variety
+
+anova(lm(Y1 ~ Var, immer))
+# no significan effect
+
+crabs
+library(El)
