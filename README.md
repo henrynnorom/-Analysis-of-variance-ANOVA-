@@ -149,6 +149,3 @@ anova(lm(Y1 ~ Loc + Var, immer))
 
 anova(lm(Y1 ~ Var, immer))
 # no significan effect
-
-crabs
-library(El)
